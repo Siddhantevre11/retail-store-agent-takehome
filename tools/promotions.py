@@ -19,6 +19,9 @@ def create_promotion(
 ):
     """Resolve product_name/category to scope_type/scope_ref internally —
     the model never supplies those raw DB-column values itself."""
+    if category is None and product_name is None:
+        return {"error": "no_scope_given"}
+
     if category is not None:
         if category not in _known_categories(conn):
             return {"error": "unknown_category", "category": category}

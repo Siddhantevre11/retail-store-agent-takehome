@@ -41,9 +41,13 @@ def find_sku(conn, product_name, color=None, size=None):
 
 
 def find_customer(conn, name):
-    """Resolve a customer name to a customer_id, or None (walk-in) if unknown."""
+    """Resolve a customer reference to a customer_id, or None (walk-in) if
+    unknown. Accepts either a name or an already-resolved customer_id — not
+    ambiguous, since an id maps to exactly one customer either way.
+    """
     row = conn.execute(
-        "SELECT customer_id FROM customers WHERE LOWER(name) = LOWER(?)", (name,)
+        "SELECT customer_id FROM customers WHERE LOWER(name) = LOWER(?) OR customer_id = ?",
+        (name, name),
     ).fetchone()
     return row["customer_id"] if row else None
 

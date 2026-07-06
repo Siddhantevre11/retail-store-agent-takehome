@@ -39,6 +39,14 @@ def test_find_customer_returns_none_for_unknown_name(db_conn):
     assert find_customer(db_conn, "Nobody Nowhere") is None
 
 
+def test_find_customer_also_resolves_a_customer_id_directly(db_conn):
+    # Found via the adversarial harness: the model occasionally passes back
+    # a customer_id it just saw in a find_customer result, instead of the
+    # name. Not ambiguous — a customer_id maps to exactly one customer — so
+    # the tool can just handle it rather than silently falling back to walk-in.
+    assert find_customer(db_conn, "C-001") == "C-001"
+
+
 def test_get_unit_price_applies_seeded_promo_within_its_window(db_conn):
     price = get_unit_price(db_conn, "TEE-BLU-M", date(2026, 5, 3))
 

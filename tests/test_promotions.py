@@ -38,6 +38,21 @@ def test_create_promotion_by_product_name_does_not_affect_other_products(db_conn
     assert tee_price == Decimal("25.00")
 
 
+def test_create_promotion_rejects_when_neither_product_nor_category_given(db_conn):
+    # Found via the adversarial harness: even with a sharpened prompt telling
+    # it to ask first, the model occasionally calls this with both null —
+    # must not crash, must return a structured error.
+    result = create_promotion(
+        db_conn,
+        description="10% off promotion",
+        value_pct=Decimal("10"),
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 5),
+    )
+
+    assert result == {"error": "no_scope_given"}
+
+
 def test_create_promotion_does_not_alter_past_order_lines(db_conn):
     before = db_conn.execute(
         "SELECT unit_price FROM order_lines WHERE order_id = 'O-1006' AND sku = 'HOOD-NVY-L'"

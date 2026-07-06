@@ -181,7 +181,9 @@ TOOL_SCHEMAS = [
                 "or category — never both, never neither. Resolves the scope internally; "
                 "you never choose category as a stand-in for a specific product (e.g. a "
                 "hoodie-only sale must use product_name='hoodie', not category='apparel', "
-                "which would also discount tees/socks)."
+                "which would also discount tees/socks). If the user didn't state which "
+                "product or category the promotion applies to, do not call this tool with "
+                "a guessed scope — ask them which one they mean first."
             ),
             "strict": True,
             "parameters": {
