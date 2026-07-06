@@ -10,6 +10,7 @@ from openai import OpenAI
 from agent.loop import run_agent_turn
 from db.loader import bootstrap_db
 from tools.promotions import create_promotion
+from tools.purchase_orders import create_reorder_purchase_orders, receive_purchase_order
 from tools.restocking import get_stockout_report
 from tools.returns import process_return
 from tools.sales import create_sale, find_customer, find_sku, get_unit_price
@@ -216,6 +217,63 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_reorder_purchase_orders",
+            "description": (
+                "Open purchase orders for everything currently flagged as about to "
+                "stock out, from the cheapest supplier that can deliver within 10 days."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {"order_date": {"type": "string", "description": "YYYY-MM-DD"}},
+                "required": ["order_date"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "receive_purchase_order",
+            "description": (
+                "Receive stock against an open/partial purchase order for a supplier+"
+                "product, or auto-create one if none exists yet. Surfaces candidates "
+                "instead of guessing if the product reference is ambiguous."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "supplier_name": {"type": "string"},
+                    "product_name": {"type": "string"},
+                    "color": {"type": ["string", "null"]},
+                    "size": {"type": ["string", "null"]},
+                    "quantity_received": {"type": "integer"},
+                    "received_date": {"type": "string", "description": "YYYY-MM-DD"},
+                    "quantity_ordered": {
+                        "type": ["integer", "null"],
+                        "description": (
+                            "The order's original total size, only if the user stated one "
+                            "(e.g. 'a PO for 50 is open'). Only used if no PO exists yet."
+                        ),
+                    },
+                },
+                "required": [
+                    "supplier_name",
+                    "product_name",
+                    "color",
+                    "size",
+                    "quantity_received",
+                    "received_date",
+                    "quantity_ordered",
+                ],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 
@@ -268,6 +326,23 @@ def _build_tool_registry(conn):
     def _get_stockout_report():
         return get_stockout_report(conn)
 
+    def _create_reorder_purchase_orders(order_date):
+        return create_reorder_purchase_orders(conn, order_date=date.fromisoformat(order_date))
+
+    def _receive_purchase_order(
+        supplier_name, product_name, color, size, quantity_received, received_date, quantity_ordered
+    ):
+        return receive_purchase_order(
+            conn,
+            supplier_name=supplier_name,
+            product_name=product_name,
+            color=color,
+            size=size,
+            quantity_received=quantity_received,
+            received_date=date.fromisoformat(received_date),
+            quantity_ordered=quantity_ordered,
+        )
+
     return {
         "find_sku": _find_sku,
         "find_customer": _find_customer,
@@ -276,6 +351,8 @@ def _build_tool_registry(conn):
         "process_return": _process_return,
         "create_promotion": _create_promotion,
         "get_stockout_report": _get_stockout_report,
+        "create_reorder_purchase_orders": _create_reorder_purchase_orders,
+        "receive_purchase_order": _receive_purchase_order,
     }
 
 
