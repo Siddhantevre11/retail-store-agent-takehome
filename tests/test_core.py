@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from core.pricing import PromoWindow, effective_unit_price, prorate_unit_price
+from core.margin import MarginLine, compute_product_margins
 from core.restocking import SupplierOption, days_of_cover, select_supplier
 
 
@@ -66,3 +67,18 @@ def test_days_of_cover_for_tote():
 
 def test_days_of_cover_is_none_when_nothing_sold():
     assert days_of_cover(on_hand_qty=40, monthly_units=0) is None
+
+
+def test_compute_product_margins_sums_net_revenue_minus_cost_per_product():
+    lines = [
+        MarginLine(
+            product_id="P-MUG", net_quantity=10, unit_price_paid=Decimal("12.00"), unit_cost=Decimal("5.00")
+        ),
+        MarginLine(
+            product_id="P-TOTE", net_quantity=1, unit_price_paid=Decimal("18.00"), unit_cost=Decimal("7.00")
+        ),
+    ]
+
+    margins = compute_product_margins(lines)
+
+    assert margins == {"P-MUG": Decimal("70.00"), "P-TOTE": Decimal("11.00")}

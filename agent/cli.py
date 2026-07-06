@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from agent.loop import run_agent_turn
 from db.loader import bootstrap_db
+from tools.margin import get_margin_report
 from tools.promotions import create_promotion
 from tools.purchase_orders import create_reorder_purchase_orders, receive_purchase_order
 from tools.restocking import get_stockout_report
@@ -274,6 +275,28 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_margin_report",
+            "description": (
+                "Top products by profit margin for a period. Period-bounded: a "
+                "return only affects the margin of the period its own return date "
+                "falls in. Only good/restocked returns reduce margin; damaged "
+                "returns don't."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "period": {"type": "string", "enum": ["last_month"]},
+                    "top_n": {"type": "integer"},
+                },
+                "required": ["period", "top_n"],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 
@@ -343,6 +366,9 @@ def _build_tool_registry(conn):
             quantity_ordered=quantity_ordered,
         )
 
+    def _get_margin_report(period, top_n):
+        return get_margin_report(conn, period=period, top_n=top_n)
+
     return {
         "find_sku": _find_sku,
         "find_customer": _find_customer,
@@ -353,6 +379,7 @@ def _build_tool_registry(conn):
         "get_stockout_report": _get_stockout_report,
         "create_reorder_purchase_orders": _create_reorder_purchase_orders,
         "receive_purchase_order": _receive_purchase_order,
+        "get_margin_report": _get_margin_report,
     }
 
 
