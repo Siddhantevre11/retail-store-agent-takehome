@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from core.pricing import PromoWindow, effective_unit_price, prorate_unit_price
 from tools.ids import next_sequential_id
+from tools.text import name_matches
 
 _SIZE_SYNONYMS = {"small": "S", "medium": "M", "large": "L", "s": "S", "m": "M", "l": "L"}
 
@@ -11,12 +12,6 @@ def _normalize_size(size):
     if size is None:
         return None
     return _SIZE_SYNONYMS.get(size.strip().lower(), size.strip().upper())
-
-
-def _name_matches(query_name, product_name):
-    q = query_name.strip().lower()
-    p = product_name.strip().lower()
-    return q in p or p in q
 
 
 def find_sku(conn, product_name, color=None, size=None):
@@ -28,7 +23,7 @@ def find_sku(conn, product_name, color=None, size=None):
     size_norm = _normalize_size(size)
 
     rows = conn.execute("SELECT * FROM products").fetchall()
-    candidates = [r for r in rows if _name_matches(product_name, r["product_name"])]
+    candidates = [r for r in rows if name_matches(product_name, r["product_name"])]
 
     if color is not None:
         color_norm = color.strip().lower()

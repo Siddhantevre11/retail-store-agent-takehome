@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from agent.loop import run_agent_turn
 from db.loader import bootstrap_db
+from tools.promotions import create_promotion
 from tools.returns import process_return
 from tools.sales import create_sale, find_customer, find_sku, get_unit_price
 
@@ -163,6 +164,40 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_promotion",
+            "description": (
+                "Create a percent-off promotion, scoped to exactly one of product_name "
+                "or category — never both, never neither. Resolves the scope internally; "
+                "you never choose category as a stand-in for a specific product (e.g. a "
+                "hoodie-only sale must use product_name='hoodie', not category='apparel', "
+                "which would also discount tees/socks)."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {"type": "string"},
+                    "value_pct": {"type": "string", "description": "e.g. '20' for 20% off"},
+                    "start_date": {"type": "string", "description": "YYYY-MM-DD"},
+                    "end_date": {"type": "string", "description": "YYYY-MM-DD"},
+                    "product_name": {"type": ["string", "null"]},
+                    "category": {"type": ["string", "null"], "description": "'apparel' or 'goods'"},
+                },
+                "required": [
+                    "description",
+                    "value_pct",
+                    "start_date",
+                    "end_date",
+                    "product_name",
+                    "category",
+                ],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 
@@ -201,12 +236,24 @@ def _build_tool_registry(conn):
             return_date=date.fromisoformat(return_date),
         )
 
+    def _create_promotion(description, value_pct, start_date, end_date, product_name, category):
+        return create_promotion(
+            conn,
+            description=description,
+            value_pct=Decimal(value_pct),
+            start_date=date.fromisoformat(start_date),
+            end_date=date.fromisoformat(end_date),
+            product_name=product_name,
+            category=category,
+        )
+
     return {
         "find_sku": _find_sku,
         "find_customer": _find_customer,
         "get_unit_price": _get_unit_price,
         "create_sale": _create_sale,
         "process_return": _process_return,
+        "create_promotion": _create_promotion,
     }
 
 

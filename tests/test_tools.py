@@ -10,6 +10,14 @@ def test_find_sku_resolves_unambiguous_variant(db_conn):
     assert sku == "TEE-BLU-M"
 
 
+def test_find_sku_matches_plural_product_name(db_conn):
+    # "hoodies" isn't a substring of "Pullover Hoodie" (or vice versa) — the
+    # naive substring check misses this; needs singular-form normalization.
+    sku = find_sku(db_conn, "hoodies", color="Gray", size="Medium")
+
+    assert sku == "HOOD-GRY-M"
+
+
 def test_find_sku_returns_candidates_on_genuine_ambiguity(db_conn):
     result = find_sku(db_conn, "hoodie", size="Medium")
 
