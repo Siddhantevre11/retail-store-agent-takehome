@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from agent.loop import run_agent_turn
+from agent.session import SessionState, resolve_return_reference
 from db.loader import bootstrap_db
 from tools.margin import get_margin_report
 from tools.promotions import create_promotion
@@ -140,14 +141,17 @@ TOOL_SCHEMAS = [
                 "Process a return against an existing order. Refunds the price actually "
                 "paid (not today's price). Rejects with a structured error if the "
                 "requested quantity exceeds what's still eligible on that line — never "
-                "partially fulfills. Good condition restocks; damaged does not."
+                "partially fulfills. Good condition restocks; damaged does not. Omit "
+                "order_id/product_name (null) only if genuinely not stated in this turn "
+                "and clearly implied by the immediately preceding single-item sale — "
+                "otherwise always supply them explicitly."
             ),
             "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "order_id": {"type": "string"},
-                    "product_name": {"type": "string"},
+                    "order_id": {"type": ["string", "null"]},
+                    "product_name": {"type": ["string", "null"]},
                     "color": {"type": ["string", "null"]},
                     "size": {"type": ["string", "null"]},
                     "quantity": {"type": "integer"},
@@ -300,7 +304,7 @@ TOOL_SCHEMAS = [
 ]
 
 
-def _build_tool_registry(conn):
+def _build_tool_registry(conn, session):
     def _find_sku(product_name, color, size):
         result = find_sku(conn, product_name, color=color, size=size)
         if isinstance(result, str):
@@ -314,7 +318,7 @@ def _build_tool_registry(conn):
         return {"unit_price": str(get_unit_price(conn, sku, date.fromisoformat(as_of_date)))}
 
     def _create_sale(customer_name, lines, payment_method, order_discount_pct, order_date):
-        return create_sale(
+        result = create_sale(
             conn,
             lines=lines,
             payment_method=payment_method,
@@ -322,18 +326,35 @@ def _build_tool_registry(conn):
             customer_name=customer_name,
             order_discount_pct=Decimal(order_discount_pct),
         )
+        if "order_id" in result:
+            session.record_sale(order_id=result["order_id"], lines=lines)
+        return result
 
     def _process_return(order_id, product_name, color, size, quantity, condition, return_date):
-        return process_return(
+        resolved = resolve_return_reference(session, order_id, product_name, color, size)
+        if resolved is None:
+            return {
+                "error": "ambiguous_reference",
+                "message": "Which order/item do you mean? Please specify.",
+            }
+
+        result = process_return(
             conn,
-            order_id=order_id,
-            product_name=product_name,
-            color=color,
-            size=size,
+            order_id=resolved["order_id"],
+            product_name=resolved["product_name"],
+            color=resolved["color"],
+            size=resolved["size"],
             quantity=quantity,
             condition=condition,
             return_date=date.fromisoformat(return_date),
         )
+        if resolved["inferred"]:
+            result = dict(result)
+            result["inferred_fields"] = {
+                "order_id": resolved["order_id"],
+                "product_name": resolved["product_name"],
+            }
+        return result
 
     def _create_promotion(description, value_pct, start_date, end_date, product_name, category):
         return create_promotion(
@@ -393,7 +414,8 @@ def main():
     load_dotenv()
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     conn = bootstrap_db(DATA_DIR)
-    tool_registry = _build_tool_registry(conn)
+    session = SessionState()
+    tool_registry = _build_tool_registry(conn, session)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
