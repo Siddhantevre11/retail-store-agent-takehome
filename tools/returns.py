@@ -25,6 +25,8 @@ def process_return(
         "SELECT quantity, unit_price FROM order_lines WHERE order_id = ? AND sku = ?",
         (order_id, sku),
     ).fetchone()
+    if line is None:
+        return {"error": "sku_not_on_order", "order_id": order_id, "sku": sku}
 
     already_returned = conn.execute(
         "SELECT COALESCE(SUM(quantity), 0) AS n FROM returns WHERE order_id = ? AND sku = ?",

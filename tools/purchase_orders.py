@@ -14,6 +14,18 @@ def _find_supplier(conn, name):
     return matches[0]["supplier_id"] if len(matches) == 1 else None
 
 
+def _already_on_order(conn, sku):
+    row = conn.execute(
+        """
+        SELECT 1 FROM purchase_order_lines pol
+        JOIN purchase_orders po ON po.po_id = pol.po_id
+        WHERE pol.sku = ? AND po.status IN ('open', 'partial')
+        """,
+        (sku,),
+    ).fetchone()
+    return row is not None
+
+
 def _select_supplier_for_product(conn, product_id):
     rows = conn.execute(
         "SELECT supplier_id, unit_cost, lead_time_days FROM supplier_catalog WHERE product_id = ?",
@@ -41,6 +53,8 @@ def create_reorder_purchase_orders(conn, order_date):
 
     lines_by_supplier = defaultdict(list)
     for row in flagged:
+        if _already_on_order(conn, row["sku"]):
+            continue
         supplier = _select_supplier_for_product(conn, row["product_id"])
         reorder_qty = conn.execute(
             "SELECT reorder_qty FROM inventory WHERE sku = ?", (row["sku"],)

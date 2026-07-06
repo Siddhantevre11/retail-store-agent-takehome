@@ -6,12 +6,18 @@ from tools.ids import next_sequential_id
 from tools.text import name_matches
 
 _SIZE_SYNONYMS = {"small": "S", "medium": "M", "large": "L", "s": "S", "m": "M", "l": "L"}
+_COLOR_SYNONYMS = {"grey": "gray"}
 
 
 def _normalize_size(size):
     if size is None:
         return None
     return _SIZE_SYNONYMS.get(size.strip().lower(), size.strip().upper())
+
+
+def _normalize_color(color):
+    c = color.strip().lower()
+    return _COLOR_SYNONYMS.get(c, c)
 
 
 def find_sku(conn, product_name, color=None, size=None):
@@ -26,8 +32,8 @@ def find_sku(conn, product_name, color=None, size=None):
     candidates = [r for r in rows if name_matches(product_name, r["product_name"])]
 
     if color is not None:
-        color_norm = color.strip().lower()
-        candidates = [c for c in candidates if c["color"].strip().lower() == color_norm]
+        color_norm = _normalize_color(color)
+        candidates = [c for c in candidates if _normalize_color(c["color"]) == color_norm]
 
     if size_norm is not None:
         candidates = [c for c in candidates if c["size"].strip().upper() == size_norm]
@@ -42,14 +48,19 @@ def find_sku(conn, product_name, color=None, size=None):
 
 def find_customer(conn, name):
     """Resolve a customer reference to a customer_id, or None (walk-in) if
-    unknown. Accepts either a name or an already-resolved customer_id — not
-    ambiguous, since an id maps to exactly one customer either way.
+    unknown or ambiguous. Accepts a full name, a partial name (e.g. just a
+    first name, if unambiguous), or an already-resolved customer_id.
     """
-    row = conn.execute(
+    exact = conn.execute(
         "SELECT customer_id FROM customers WHERE LOWER(name) = LOWER(?) OR customer_id = ?",
         (name, name),
     ).fetchone()
-    return row["customer_id"] if row else None
+    if exact:
+        return exact["customer_id"]
+
+    rows = conn.execute("SELECT customer_id, name FROM customers").fetchall()
+    matches = [r for r in rows if name.strip().lower() in r["name"].lower()]
+    return matches[0]["customer_id"] if len(matches) == 1 else None
 
 
 def get_unit_price(conn, sku, as_of_date):

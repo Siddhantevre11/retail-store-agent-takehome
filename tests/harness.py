@@ -359,6 +359,205 @@ def _(client):
     assert len(result) == 5, result
 
 
+@case("return_of_a_product_not_on_that_order_is_rejected")
+def _(client):
+    # O-1006 has no Ceramic Mug line at all.
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        ["Return a Ceramic Mug from order O-1006, good condition, dated today."],
+    )
+    returns_count = conn.execute("SELECT COUNT(*) AS n FROM returns").fetchone()["n"]
+    assert returns_count == 1, "only the seeded R-2001 should exist"
+
+
+@case("stockout_report_flags_only_tote_on_seed_data")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(client, ["What's about to stock out?"])
+    args, result = last_call(tool_log, "get_stockout_report")
+    assert {row["sku"] for row in result} == {"TOTE"}, result
+
+
+@case("receiving_a_specific_variant_only_touches_that_pos_line")
+def _(client):
+    # Flag two different hoodie skus, reorder both onto one Northwind PO,
+    # then receive a fully-specified variant — must only touch that line.
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Ring up three Navy Large hoodies for a walk-in, cash, dated today.",
+            "Ring up three Gray Medium hoodies for a walk-in, cash, dated today.",
+            "Reorder anything below its reorder point, from the best supplier, "
+            "dated today.",
+            "20 Gray Medium hoodies arrived from Northwind today, receive them.",
+        ],
+    )
+    gray_line = conn.execute(
+        """
+        SELECT pol.quantity_received, po.status FROM purchase_order_lines pol
+        JOIN purchase_orders po ON po.po_id = pol.po_id WHERE pol.sku = 'HOOD-GRY-M'
+        """
+    ).fetchone()
+    navy_line = conn.execute(
+        """
+        SELECT pol.quantity_received FROM purchase_order_lines pol WHERE pol.sku = 'HOOD-NVY-L'
+        """
+    ).fetchone()
+    assert gray_line["quantity_received"] == 20, dict(gray_line)
+    assert navy_line["quantity_received"] == 0, dict(navy_line)
+
+
+@case("british_spelling_grey_matches_gray")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client, ["Ring up one grey medium hoodie for a walk-in, cash, dated today."]
+    )
+    args, result = last_call(tool_log, "create_sale")
+    assert result.get("lines", [{}])[0].get("sku") == "HOOD-GRY-M", result
+
+
+@case("first_name_alone_resolves_unambiguous_customer")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client, ["Ring up one Ceramic Mug for Sarah, paying cash, dated today."]
+    )
+    args, result = last_call(tool_log, "create_sale")
+    assert result["customer_id"] == "C-001", result
+
+
+@case("return_against_a_nonexistent_order_is_rejected_gracefully")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client, ["Return one Canvas Tote from order O-9999, good condition, dated today."]
+    )
+    returns_count = conn.execute("SELECT COUNT(*) AS n FROM returns").fetchone()["n"]
+    assert returns_count == 1, "only the seeded R-2001 should exist"
+
+
+@case("hundred_percent_off_promo_prices_at_zero")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Put Wool Socks on 100% off from 2026-06-20 to 2026-06-22.",
+            "What's the price of Wool Socks on 2026-06-21?",
+        ],
+    )
+    args, result = last_call(tool_log, "get_unit_price")
+    assert result["unit_price"] == "0.00", result
+
+
+@case("reordering_twice_in_a_row_does_not_duplicate_the_po")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Reorder anything that's below its reorder point, from the best "
+            "supplier. Date it today.",
+            "Reorder anything that's below its reorder point again, from the "
+            "best supplier. Date it today.",
+        ],
+    )
+    po_count = conn.execute("SELECT COUNT(*) AS n FROM purchase_orders").fetchone()["n"]
+    assert po_count == 1, "second reorder call must not duplicate an already-open PO"
+
+
+@case("apparel_category_promo_does_not_affect_goods")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Put all apparel on 20% off from 2026-06-20 to 2026-06-25.",
+            "What's the price of a Ceramic Mug on 2026-06-21?",
+        ],
+    )
+    args, result = last_call(tool_log, "get_unit_price")
+    assert result["unit_price"] == "12.00", result  # unaffected — mug is goods, not apparel
+
+
+@case("receiving_completely_unknown_product_is_rejected_gracefully")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        ["50 Flying Carpets arrived from Northwind today, receive them."],
+    )
+    po_count = conn.execute("SELECT COUNT(*) AS n FROM purchase_orders").fetchone()["n"]
+    assert po_count == 0, "no PO should be written for a nonexistent product"
+
+
+@case("margin_report_top_n_larger_than_product_count_returns_all")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client, ["What are my top 10 products by profit margin last month?"]
+    )
+    args, result = last_call(tool_log, "get_margin_report")
+    assert len(result) == 5, result  # only 5 products exist at all
+
+
+@case("multiline_sale_with_one_ambiguous_line_writes_nothing")
+def _(client):
+    # Tote line is fine on its own; hoodie line (no color/size) is ambiguous.
+    # Whole sale must abort — atomicity holds even when only one line is bad.
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Ring up one Canvas Tote and one hoodie in medium for a walk-in, "
+            "cash, dated today."
+        ],
+    )
+    order_count = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    assert order_count == 15, "ambiguous line must abort the whole sale, not just skip itself"
+
+
+@case("promotion_category_matching_is_case_insensitive")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Put all Goods on 15% off from 2026-06-20 to 2026-06-25.",
+            "What's the price of a Canvas Tote on 2026-06-21?",
+        ],
+    )
+    args, result = last_call(tool_log, "get_unit_price")
+    assert result["unit_price"] == "15.30", result
+
+
+@case("sample_prompts_6_7_9_sequenced_margin_reflects_only_may_dated_returns")
+def _(client):
+    # Mirrors the brief's own sample-prompt sequencing: two returns processed
+    # today (June), then a "last month" margin query. Both returns are
+    # June-dated, so neither should move May's already-closed HOOD/TOTE margin
+    # beyond what the seeded (May-dated) R-2001 already accounts for.
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Sarah Chen is returning one Navy Large hoodie from order O-1006. "
+            "It's in good condition.",
+            "Return the Canvas Tote from order O-1006 — it came back damaged.",
+            "What were my top five products by profit margin last month?",
+        ],
+    )
+    args, result = last_call(tool_log, "get_margin_report")
+    by_id = {r["product_id"]: r["margin"] for r in result}
+    assert by_id["P-HOOD"] == Decimal("282.00"), result  # unchanged by the June return
+    assert by_id["P-TOTE"] == Decimal("108.20"), result  # damaged never affects margin
+
+
+@case("sample_prompt_5_literal_text")
+def _(client):
+    conn, session, tool_log, replies = run_conversation(
+        client,
+        [
+            "Reorder anything that's below its reorder point, from the best "
+            "supplier. Date it today.",
+            "A purchase order for 50 Canvas Totes from Northwind is open and "
+            "40 arrived — receive them, dated today.",
+        ],
+    )
+    args, result = last_call(tool_log, "receive_purchase_order")
+    assert result["status"] == "partial", result
+    assert result["quantity_received"] == 40, result
+
+
 def main():
     load_dotenv()
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])

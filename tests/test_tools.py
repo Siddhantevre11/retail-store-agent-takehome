@@ -24,6 +24,12 @@ def test_find_sku_matches_common_synonym_jumper_for_hoodie(db_conn):
     assert sku == "HOOD-GRY-M"
 
 
+def test_find_sku_matches_grey_british_spelling_for_gray(db_conn):
+    sku = find_sku(db_conn, "hoodie", color="grey", size="Medium")
+
+    assert sku == "HOOD-GRY-M"
+
+
 def test_find_sku_returns_candidates_on_genuine_ambiguity(db_conn):
     result = find_sku(db_conn, "hoodie", size="Medium")
 
@@ -37,6 +43,11 @@ def test_find_customer_resolves_known_name(db_conn):
 
 def test_find_customer_returns_none_for_unknown_name(db_conn):
     assert find_customer(db_conn, "Nobody Nowhere") is None
+
+
+def test_find_customer_matches_a_first_name_alone(db_conn):
+    # "Sarah" is unambiguous — only one customer has that first name.
+    assert find_customer(db_conn, "Sarah") == "C-001"
 
 
 def test_find_customer_also_resolves_a_customer_id_directly(db_conn):

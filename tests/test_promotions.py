@@ -38,6 +38,19 @@ def test_create_promotion_by_product_name_does_not_affect_other_products(db_conn
     assert tee_price == Decimal("25.00")
 
 
+def test_create_promotion_category_matching_is_case_insensitive(db_conn):
+    result = create_promotion(
+        db_conn,
+        description="test",
+        value_pct=Decimal("10"),
+        start_date=date(2026, 6, 20),
+        end_date=date(2026, 6, 25),
+        category="Goods",
+    )
+
+    assert result["scope_ref"] == "goods"
+
+
 def test_create_promotion_rejects_when_neither_product_nor_category_given(db_conn):
     # Found via the adversarial harness: even with a sharpened prompt telling
     # it to ask first, the model occasionally calls this with both null —

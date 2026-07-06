@@ -44,6 +44,20 @@ def test_process_return_damaged_condition_refunds_but_does_not_restock(db_conn):
     assert on_hand == 4  # unchanged — damaged, not restocked
 
 
+def test_process_return_rejects_when_sku_was_not_on_that_order(db_conn):
+    # O-1006 has no Ceramic Mug line at all — must not crash.
+    result = process_return(
+        db_conn,
+        order_id="O-1006",
+        product_name="Ceramic Mug",
+        quantity=1,
+        condition="good",
+        return_date=date(2026, 6, 19),
+    )
+
+    assert result == {"error": "sku_not_on_order", "order_id": "O-1006", "sku": "MUG"}
+
+
 def test_process_return_rejects_over_return_without_writing(db_conn):
     # Only 1 of the 2 HOOD-NVY-L units on O-1006 is still eligible (R-2001
     # already returned 1, good condition). Requesting 2 more must be rejected.

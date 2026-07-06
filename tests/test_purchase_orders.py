@@ -21,6 +21,18 @@ def test_create_reorder_purchase_orders_opens_po_for_tote_from_northwind(db_conn
     assert line["status"] == "open"
 
 
+def test_create_reorder_purchase_orders_does_not_duplicate_an_already_open_po(db_conn):
+    # Found via the adversarial harness: calling this twice in a row (before
+    # anything is received) used to open a second, redundant PO for the same
+    # still-flagged sku instead of recognizing it's already on order.
+    create_reorder_purchase_orders(db_conn, order_date=date(2026, 6, 19))
+    second_result = create_reorder_purchase_orders(db_conn, order_date=date(2026, 6, 19))
+
+    assert second_result == []
+    po_count = db_conn.execute("SELECT COUNT(*) AS n FROM purchase_orders").fetchone()["n"]
+    assert po_count == 1
+
+
 def test_create_reorder_purchase_orders_result_includes_supplier_name(db_conn):
     result = create_reorder_purchase_orders(db_conn, order_date=date(2026, 6, 19))
 

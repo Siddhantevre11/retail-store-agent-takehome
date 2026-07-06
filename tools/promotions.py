@@ -23,9 +23,10 @@ def create_promotion(
         return {"error": "no_scope_given"}
 
     if category is not None:
-        if category not in _known_categories(conn):
+        category_norm = category.strip().lower()
+        if category_norm not in _known_categories(conn):
             return {"error": "unknown_category", "category": category}
-        scope_type, scope_ref = "category", category
+        scope_type, scope_ref = "category", category_norm
     else:
         product_id = _resolve_product_id(conn, product_name)
         if not isinstance(product_id, str):
