@@ -53,6 +53,8 @@ def get_unit_price(conn, sku, as_of_date):
     product = conn.execute(
         "SELECT product_id, category, retail_price FROM products WHERE sku = ?", (sku,)
     ).fetchone()
+    if product is None:
+        return {"error": "unknown_sku", "sku": sku}
 
     promo_rows = conn.execute(
         """

@@ -18,6 +18,12 @@ def test_find_sku_matches_plural_product_name(db_conn):
     assert sku == "HOOD-GRY-M"
 
 
+def test_find_sku_matches_common_synonym_jumper_for_hoodie(db_conn):
+    sku = find_sku(db_conn, "jumper", color="Gray", size="Medium")
+
+    assert sku == "HOOD-GRY-M"
+
+
 def test_find_sku_returns_candidates_on_genuine_ambiguity(db_conn):
     result = find_sku(db_conn, "hoodie", size="Medium")
 
@@ -43,6 +49,14 @@ def test_get_unit_price_uses_list_price_outside_promo_window(db_conn):
     price = get_unit_price(db_conn, "TEE-BLU-M", date(2026, 6, 19))
 
     assert price == Decimal("25.00")
+
+
+def test_get_unit_price_returns_structured_error_for_unknown_sku(db_conn):
+    # Found via the adversarial harness: the model can call this tool
+    # standalone with a hallucinated/placeholder sku — must not crash.
+    result = get_unit_price(db_conn, "__resolve_after_sku__", date(2026, 6, 19))
+
+    assert result == {"error": "unknown_sku", "sku": "__resolve_after_sku__"}
 
 
 def test_create_sale_single_line_walk_in_happy_path(db_conn):
