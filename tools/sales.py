@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from core.pricing import PromoWindow, effective_unit_price, prorate_unit_price
+from tools.ids import next_sequential_id
 
 _SIZE_SYNONYMS = {"small": "S", "medium": "M", "large": "L", "s": "S", "m": "M", "l": "L"}
 
@@ -84,14 +85,7 @@ def get_unit_price(conn, sku, as_of_date):
 
 
 def _next_order_id(conn):
-    rows = conn.execute("SELECT order_id FROM orders").fetchall()
-    max_n = 1000
-    for row in rows:
-        try:
-            max_n = max(max_n, int(row["order_id"].split("-")[1]))
-        except (IndexError, ValueError):
-            pass
-    return f"O-{max_n + 1}"
+    return next_sequential_id(conn, "orders", "order_id", "O", start=1000)
 
 
 def create_sale(

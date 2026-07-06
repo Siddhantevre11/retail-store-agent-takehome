@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from agent.loop import run_agent_turn
 from db.loader import bootstrap_db
+from tools.returns import process_return
 from tools.sales import create_sale, find_customer, find_sku, get_unit_price
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -127,6 +128,41 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "process_return",
+            "description": (
+                "Process a return against an existing order. Refunds the price actually "
+                "paid (not today's price). Rejects with a structured error if the "
+                "requested quantity exceeds what's still eligible on that line — never "
+                "partially fulfills. Good condition restocks; damaged does not."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {"type": "string"},
+                    "product_name": {"type": "string"},
+                    "color": {"type": ["string", "null"]},
+                    "size": {"type": ["string", "null"]},
+                    "quantity": {"type": "integer"},
+                    "condition": {"type": "string", "enum": ["good", "damaged"]},
+                    "return_date": {"type": "string", "description": "YYYY-MM-DD"},
+                },
+                "required": [
+                    "order_id",
+                    "product_name",
+                    "color",
+                    "size",
+                    "quantity",
+                    "condition",
+                    "return_date",
+                ],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 
@@ -153,11 +189,24 @@ def _build_tool_registry(conn):
             order_discount_pct=Decimal(order_discount_pct),
         )
 
+    def _process_return(order_id, product_name, color, size, quantity, condition, return_date):
+        return process_return(
+            conn,
+            order_id=order_id,
+            product_name=product_name,
+            color=color,
+            size=size,
+            quantity=quantity,
+            condition=condition,
+            return_date=date.fromisoformat(return_date),
+        )
+
     return {
         "find_sku": _find_sku,
         "find_customer": _find_customer,
         "get_unit_price": _get_unit_price,
         "create_sale": _create_sale,
+        "process_return": _process_return,
     }
 
 
