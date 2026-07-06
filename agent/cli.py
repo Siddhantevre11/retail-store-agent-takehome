@@ -10,6 +10,7 @@ from openai import OpenAI
 from agent.loop import run_agent_turn
 from db.loader import bootstrap_db
 from tools.promotions import create_promotion
+from tools.restocking import get_stockout_report
 from tools.returns import process_return
 from tools.sales import create_sale, find_customer, find_sku, get_unit_price
 
@@ -198,6 +199,23 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_stockout_report",
+            "description": (
+                "List every sku that's about to stock out — either below its own "
+                "reorder point, or its product's aggregate days-of-cover is under 14."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 
@@ -247,6 +265,9 @@ def _build_tool_registry(conn):
             category=category,
         )
 
+    def _get_stockout_report():
+        return get_stockout_report(conn)
+
     return {
         "find_sku": _find_sku,
         "find_customer": _find_customer,
@@ -254,6 +275,7 @@ def _build_tool_registry(conn):
         "create_sale": _create_sale,
         "process_return": _process_return,
         "create_promotion": _create_promotion,
+        "get_stockout_report": _get_stockout_report,
     }
 
 
