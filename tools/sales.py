@@ -20,16 +20,56 @@ def _normalize_color(color):
     return _COLOR_SYNONYMS.get(c, c)
 
 
+def _strip_word(text, word):
+    kept = [w for w in text.split() if w.lower() != word.lower()]
+    cleaned = " ".join(kept)
+    return cleaned if cleaned else text
+
+
+def _known_descriptor_words(conn, column, synonyms):
+    """Color/size vocabulary the model might fold into product_name instead
+    of (or in addition to) its own argument — the catalog's actual values
+    plus any recognized synonyms (e.g. 'grey', 'small')."""
+    values = {
+        row[0].strip().lower()
+        for row in conn.execute(f"SELECT DISTINCT {column} FROM products").fetchall()
+        if row[0]
+    }
+    return values | set(synonyms.keys()) | {v.lower() for v in synonyms.values()}
+
+
+def _extract_and_strip(conn, column, synonyms, query_name, explicit_value):
+    """If explicit_value is None, look for a known descriptor word (e.g. a
+    color name) folded into query_name and recover it as the effective
+    value — the customer did state it, just not in its own argument slot.
+    Either way, strip that word out of query_name so a duplicated color/size
+    word can't defeat the product-name substring match.
+    """
+    effective_value = explicit_value
+    if effective_value is None:
+        known = _known_descriptor_words(conn, column, synonyms)
+        for word in query_name.split():
+            if word.lower() in known:
+                effective_value = word
+                break
+    if effective_value is not None:
+        query_name = _strip_word(query_name, effective_value)
+    return query_name, effective_value
+
+
 def find_sku(conn, product_name, color=None, size=None):
     """Resolve a natural-language product reference to a sku.
 
     Returns the sku string on an unambiguous match, or a list of candidate
     rows (dicts) when more than one variant matches — never guesses.
     """
+    query_name = product_name
+    query_name, color = _extract_and_strip(conn, "color", _COLOR_SYNONYMS, query_name, color)
+    query_name, size = _extract_and_strip(conn, "size", _SIZE_SYNONYMS, query_name, size)
     size_norm = _normalize_size(size)
 
     rows = conn.execute("SELECT * FROM products").fetchall()
-    candidates = [r for r in rows if name_matches(product_name, r["product_name"])]
+    candidates = [r for r in rows if name_matches(query_name, r["product_name"])]
 
     if color is not None:
         color_norm = _normalize_color(color)

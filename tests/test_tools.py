@@ -30,6 +30,42 @@ def test_find_sku_matches_grey_british_spelling_for_gray(db_conn):
     assert sku == "HOOD-GRY-M"
 
 
+def test_find_sku_matches_when_color_word_is_folded_into_the_name(db_conn):
+    # "Black Tee" isn't a substring of "Classic Tee" (or vice versa) even
+    # though color="Black" is passed separately — found via the smoke
+    # harness, where the model sometimes folds the color adjective into the
+    # product_name phrase instead of (or in addition to) the color arg.
+    sku = find_sku(db_conn, "Black Tee", color="Black", size="Medium")
+
+    assert sku == "TEE-BLK-M"
+
+
+def test_find_sku_still_matches_when_color_is_not_folded_into_the_name(db_conn):
+    # Regression check: the already-working case (color passed separately,
+    # not duplicated in product_name) must keep working.
+    sku = find_sku(db_conn, "Tee", color="Black", size="Medium")
+
+    assert sku == "TEE-BLK-M"
+
+
+def test_find_sku_matches_when_size_word_is_folded_into_the_name(db_conn):
+    # Same root cause as the color case above: "Small Tee" isn't a substring
+    # of "Classic Tee" even though size="Small" is passed separately.
+    sku = find_sku(db_conn, "Small Tee", color="Black", size="Small")
+
+    assert sku == "TEE-BLK-S"
+
+
+def test_find_sku_matches_color_word_folded_into_name_even_without_a_separate_color_arg(db_conn):
+    # The model is inconsistent about whether it extracts the color into its
+    # own argument or leaves it folded into product_name with color=None
+    # entirely (observed via the smoke harness) — "Black" is still a known
+    # color in the catalog regardless of which argument slot it arrived in.
+    sku = find_sku(db_conn, "Black Tee", color=None, size="Medium")
+
+    assert sku == "TEE-BLK-M"
+
+
 def test_find_sku_returns_candidates_on_genuine_ambiguity(db_conn):
     result = find_sku(db_conn, "hoodie", size="Medium")
 
