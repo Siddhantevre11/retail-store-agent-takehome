@@ -101,9 +101,29 @@ customer_id back as if it were a name, treating "grey" and "gray" as different c
 outright on a hallucinated sku or a sku/order combination that doesn't exist, double-ordering
 stock on a repeated reorder request.
 
+**Two different failure classes, found two different ways.** The 11 harness bugs above are all
+*silent-guess correctness bugs*: the model does something that looks fine but writes wrong or
+duplicated state — caught by assertion-based tests because there's a known-right answer to
+assert against. A separate class showed up only when I built `tests/smoke.py` and ran ~80
+un-assertable prompts through the live agent for manual review (no ground truth to assert
+against, just eyeballing the transcript the way a grader would): `find_sku` failed to resolve
+references like "Black Tee" or "Small Tee" — the color/size adjective folded into the same
+phrase as the product name — because the matcher required the whole query string to
+substring-match the catalog's actual `product_name` ("Classic Tee"), regardless of whether
+color/size were also passed as their own arguments. This is a *robustness gap*, not a
+silent-guess bug: the failure mode was always "ask the customer to rephrase," never "sell or
+return the wrong item" — the tool-boundary validation (§1) held even when the parsing upstream
+of it was broken. Fixed by having `find_sku` recover a color/size word folded into the name
+query (checked against the catalog's own distinct values, not a guessed word list) and use it
+as the effective filter either way. Being able to tell these two classes apart — "wrote the
+wrong thing" versus "correctly refused something it should have accepted" — is what determined
+which test tool caught which bug; an assertion-based harness alone would never have surfaced
+the second class, since there was no pre-known expected value to assert.
+
 **Harness result:** 41 cases, 100% pass rate, run directly against the live OpenAI API
-(`python -m tests.harness`), stable across repeated reruns. 11 real bugs found and fixed this
-way, on top of 52 passing unit tests for `core/`, `tools/`, `agent/session`, and the CSV loader.
+(`python -m tests.harness`), stable across repeated reruns. 11 real silent-guess/crash bugs
+found and fixed this way, plus 1 robustness gap found via the manual smoke run, on top of 62
+passing unit tests for `core/`, `tools/`, `agent/session`, and the CSV loader.
 
 ## 4. What's next
 

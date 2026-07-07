@@ -68,7 +68,7 @@ each of which validates and resolves references before touching the database. Fu
 python -m pytest
 ```
 
-52 unit tests covering `core/`, `tools/`, `agent/session`, and the loader.
+62 unit tests covering `core/`, `tools/`, `agent/session`, and the loader.
 
 An adversarial harness drives the agent through real prompts against the live OpenAI API and
 asserts on captured tool calls / DB state (never on prose replies):
@@ -78,3 +78,11 @@ python -m tests.harness
 ```
 
 41 cases, 100% pass rate. See `WRITEUP.md` for what it caught.
+
+For prompts with no known-right answer to assert against (rehearsing the kind of broad,
+un-assertable run a grader does), `tests/smoke.py` drives the live agent through a list of
+prompts and prints a readable transcript for manual review instead:
+
+```
+python -m tests.smoke tests/smoke_prompts_full.txt
+```
