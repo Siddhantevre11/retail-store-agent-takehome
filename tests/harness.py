@@ -261,6 +261,24 @@ def _(client):
     assert order_count == 15, "no order should have been written for a nonexistent product"
 
 
+@case("oversell_beyond_on_hand_stock_is_rejected")
+def _(client):
+    # TOTE has on_hand_qty 4 in seed data. Asking for 50 must be rejected by
+    # create_sale's insufficient_stock guard, not silently clamped or sold
+    # short — and no order/order_lines row should be written at all.
+    conn, session, tool_log, replies = run_conversation(
+        client, ["Ring up fifty Canvas Totes for a walk-in, cash, dated today."]
+    )
+    args, result = last_call(tool_log, "create_sale")
+    assert result.get("error") == "insufficient_stock", result
+    order_count = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    assert order_count == 15, "no order should have been written when stock was insufficient"
+    on_hand = conn.execute("SELECT on_hand_qty FROM inventory WHERE sku = 'TOTE'").fetchone()[
+        "on_hand_qty"
+    ]
+    assert on_hand == 4, "inventory must be untouched on a rejected oversell"
+
+
 @case("pronoun_reference_to_named_customer_across_turns")
 def _(client):
     conn, session, tool_log, replies = run_conversation(
@@ -562,9 +580,14 @@ def main():
     load_dotenv()
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+    filter_substr = sys.argv[1] if len(sys.argv) > 1 else None
+    cases = (
+        [(n, fn) for n, fn in CASES if filter_substr in n] if filter_substr else CASES
+    )
+
     passed = 0
     failed = []
-    for name, fn in CASES:
+    for name, fn in cases:
         try:
             fn(client)
             passed += 1
@@ -576,7 +599,7 @@ def main():
             failed.append(name)
             print(f"ERROR {name}: {e!r}")
 
-    total = len(CASES)
+    total = len(cases)
     rate = passed / total if total else 0
     print(f"\n{passed}/{total} passed ({rate:.0%})")
     if failed:
