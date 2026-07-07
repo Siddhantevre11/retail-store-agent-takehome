@@ -120,14 +120,22 @@ def _(client):
     # "John Smith" is a stated name, not an omission — must not silently
     # ring up as a walk-in (that's reserved for when no name is given at
     # all). Reversed from the prior behavior this case used to assert on,
-    # per the project's own "ask, don't silently default" philosophy.
+    # per the project's own "ask, don't silently default" philosophy. The
+    # model may resolve this via a standalone find_customer call and never
+    # even attempt create_sale (a perfectly fine, arguably better path) —
+    # the invariant that matters is DB state, not which tool got called.
     conn, session, tool_log, replies = run_conversation(
         client, ["Ring up one Ceramic Mug for John Smith, paying cash, dated today."]
     )
-    args, result = last_call(tool_log, "create_sale")
-    assert result.get("error") == "unknown_customer", result
     order_count = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
     assert order_count == 15, "no order should have been written for an unresolved customer"
+
+    create_sale_calls = [(a, r) for n, a, r in tool_log if n == "create_sale"]
+    for _args, result in create_sale_calls:
+        assert "order_id" not in result, (
+            "create_sale must not silently succeed as a walk-in for a stated-but-"
+            f"unmatched customer name: {result}"
+        )
 
 
 @case("product_synonym_jumper_for_hoodie")
