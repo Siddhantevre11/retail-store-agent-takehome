@@ -107,10 +107,20 @@ def find_sku(conn, product_name, color=None, size=None):
 
 
 def find_customer(conn, name):
-    """Resolve a customer reference to a customer_id, or None (walk-in) if
-    unknown or ambiguous. Accepts a full name, a partial name (e.g. just a
-    first name, if unambiguous), or an already-resolved customer_id.
+    """Resolve a customer reference. Accepts a full name, a partial name
+    (e.g. just a first name, if unambiguous), or an already-resolved
+    customer_id.
+
+    Returns None only when no name was given at all — a walk-in, a defined
+    business meaning, not missing information. Returns the customer_id
+    string on an unambiguous match. Otherwise returns a list of candidate
+    customer dicts (empty if the given name matched no one, more than one
+    if genuinely ambiguous) — a name that WAS given but didn't resolve is
+    never silently collapsed into the same None a walk-in would produce.
     """
+    if not name:
+        return None
+
     exact = conn.execute(
         "SELECT customer_id FROM customers WHERE LOWER(name) = LOWER(?) OR customer_id = ?",
         (name, name),
@@ -120,7 +130,9 @@ def find_customer(conn, name):
 
     rows = conn.execute("SELECT customer_id, name FROM customers").fetchall()
     matches = [r for r in rows if name.strip().lower() in r["name"].lower()]
-    return matches[0]["customer_id"] if len(matches) == 1 else None
+    if len(matches) == 1:
+        return matches[0]["customer_id"]
+    return [{"customer_id": r["customer_id"], "name": r["name"]} for r in matches]
 
 
 def get_unit_price(conn, sku, as_of_date):
@@ -195,7 +207,14 @@ def create_sale(
         unit_price = get_unit_price(conn, sku, order_date)
         resolved_lines.append({"sku": sku, "quantity": line["quantity"], "unit_price": unit_price})
 
-    customer_id = find_customer(conn, customer_name) if customer_name else None
+    customer_id = find_customer(conn, customer_name)
+    if customer_id is not None and not isinstance(customer_id, str):
+        return {
+            "error": "unknown_customer",
+            "customer_name": customer_name,
+            "candidates": customer_id,
+        }
+
     order_id = _next_order_id(conn)
 
     receipt_lines = []

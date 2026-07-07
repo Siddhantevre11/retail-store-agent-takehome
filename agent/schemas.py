@@ -41,7 +41,13 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "find_customer",
-            "description": "Resolve a customer name to a customer_id, or null for a walk-in/unknown name.",
+            "description": (
+                "Resolve a customer name to a customer_id. Returns null customer_id only "
+                "when name is empty/not stated (a walk-in). If a name WAS given but doesn't "
+                "match a real customer, or matches more than one, returns "
+                "{'candidates': [...]} instead (empty list if no match) — this is not a "
+                "walk-in, ask the user to confirm the customer rather than proceeding."
+            ),
             "strict": True,
             "parameters": {
                 "type": "object",
@@ -89,7 +95,12 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "customer_name": {
                         "type": ["string", "null"],
-                        "description": "Omit (null) for a walk-in — never infer a customer.",
+                        "description": (
+                            "Omit (null) for a walk-in — never infer a customer. A stated "
+                            "name that doesn't match a real customer is rejected with an "
+                            "unknown_customer error (nothing gets rung up as a walk-in) — "
+                            "confirm the customer with the user rather than retrying blind."
+                        ),
                     },
                     "lines": {
                         "type": "array",

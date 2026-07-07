@@ -25,7 +25,10 @@ def build_tool_registry(conn, session):
         return {"candidates": result}
 
     def _find_customer(name):
-        return {"customer_id": find_customer(conn, name)}
+        result = find_customer(conn, name)
+        if result is None or isinstance(result, str):
+            return {"customer_id": result}
+        return {"candidates": result}
 
     def _get_unit_price(sku, as_of_date):
         result = get_unit_price(conn, sku, date.fromisoformat(as_of_date))

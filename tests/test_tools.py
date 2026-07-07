@@ -137,8 +137,18 @@ def test_find_customer_resolves_known_name(db_conn):
     assert find_customer(db_conn, "Sarah Chen") == "C-001"
 
 
-def test_find_customer_returns_none_for_unknown_name(db_conn):
-    assert find_customer(db_conn, "Nobody Nowhere") is None
+def test_find_customer_returns_walkin_none_only_when_no_name_is_given(db_conn):
+    # None is reserved for "no name given" (a walk-in — a defined business
+    # meaning), never for "a name was given but didn't match anyone."
+    assert find_customer(db_conn, None) is None
+
+
+def test_find_customer_returns_empty_candidates_for_a_given_but_unmatched_name(db_conn):
+    # A name WAS given here — "Nobody Nowhere" just doesn't match any real
+    # customer. Must not collapse to the same None a walk-in would produce,
+    # so the caller can tell "no customer stated" apart from "an unknown
+    # customer was stated" and ask instead of silently dropping it.
+    assert find_customer(db_conn, "Nobody Nowhere") == []
 
 
 def test_find_customer_matches_a_first_name_alone(db_conn):
@@ -341,3 +351,30 @@ def test_create_sale_returns_candidates_for_ambiguous_line_without_writing(db_co
 
     order_count = db_conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
     assert order_count == 15  # unchanged
+
+
+def test_create_sale_rejects_a_stated_but_unmatched_customer_name(db_conn):
+    # "John Smith" is a name that was actually given, just not a real
+    # customer — must not silently ring up as a walk-in (that's reserved
+    # for when no name is given at all). Writes nothing; asks instead.
+    result = create_sale(
+        db_conn,
+        customer_name="John Smith",
+        lines=[{"product_name": "Canvas Tote", "color": None, "size": None, "quantity": 1}],
+        payment_method="cash",
+        order_discount_pct=Decimal("0"),
+        order_date=date(2026, 6, 19),
+    )
+
+    assert result == {
+        "error": "unknown_customer",
+        "customer_name": "John Smith",
+        "candidates": [],
+    }
+
+    order_count = db_conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    tote_on_hand = db_conn.execute(
+        "SELECT on_hand_qty FROM inventory WHERE sku = 'TOTE'"
+    ).fetchone()["on_hand_qty"]
+    assert order_count == 15  # unchanged, nothing written
+    assert tote_on_hand == 4  # unchanged

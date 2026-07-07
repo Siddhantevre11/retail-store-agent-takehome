@@ -115,13 +115,19 @@ def _(client):
     assert result == [], result
 
 
-@case("unknown_customer_name_becomes_walkin")
+@case("unknown_customer_name_is_rejected_not_silently_walked_in")
 def _(client):
+    # "John Smith" is a stated name, not an omission — must not silently
+    # ring up as a walk-in (that's reserved for when no name is given at
+    # all). Reversed from the prior behavior this case used to assert on,
+    # per the project's own "ask, don't silently default" philosophy.
     conn, session, tool_log, replies = run_conversation(
         client, ["Ring up one Ceramic Mug for John Smith, paying cash, dated today."]
     )
     args, result = last_call(tool_log, "create_sale")
-    assert result["customer_id"] is None, result
+    assert result.get("error") == "unknown_customer", result
+    order_count = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    assert order_count == 15, "no order should have been written for an unresolved customer"
 
 
 @case("product_synonym_jumper_for_hoodie")
