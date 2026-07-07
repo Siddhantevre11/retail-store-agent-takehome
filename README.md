@@ -4,6 +4,8 @@ An interactive CLI agent for a small retail store, backed by a deterministic cor
 validating tool layer, and an OpenAI tool-calling loop. See `WRITEUP.md` for the approach,
 and `docs/PRD.md`, `docs/CONTEXT.md`, `docs/adr/` for the full design history.
 
+![Retail agent: system architecture (block diagram)](docs/diagrams/system-design.svg)
+
 ## Setup
 
 ```

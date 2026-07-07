@@ -17,6 +17,8 @@ tools/   validates + resolves references + is the ONLY code allowed to touch mon
 core/    pure functions — pricing, margin, restocking math — no DB, no I/O
 ```
 
+![Retail agent: query flow through four layers and the mutation boundary](docs/diagrams/architecture.svg)
+
 `core/` has no side effects at all: `round_half_up`, `prorate_unit_price`, `effective_unit_price`,
 `select_supplier`, `days_of_cover`, `compute_product_margins` all take values in and return
 values out. `tools/` is where a reference like "the navy hoodie" becomes a `sku`, where a

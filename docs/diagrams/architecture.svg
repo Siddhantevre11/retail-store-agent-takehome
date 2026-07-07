@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="640" viewBox="0 0 680 640" role="img" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Retail agent: query flow through four layers and the mutation boundary</title>
+  <desc>A user request flows through the agent layer (proposes a tool call), into the tool layer (validates and resolves references). At the validation gate the flow forks: on success the core computes prices and the tool writes rows to the database; on failure the tool returns a structured error and writes nothing. Only the tool layer crosses into the database.</desc>
+
+  <style>
+    .t   { fill: #2C2C2A; font-size: 14px; font-weight: 500; }
+    .ts  { fill: #5F5E5A; font-size: 12px; font-weight: 400; }
+    .lane-l { fill: #444441; font-size: 14px; font-weight: 500; }
+    .lane-s { fill: #73726c; font-size: 12px; font-weight: 400; }
+    .lane   { fill: none; stroke: #D3D1C7; stroke-width: 0.5; }
+    .arr    { stroke: #73726c; stroke-width: 1.5; fill: none; }
+    .leader { stroke: #B4B2A9; stroke-width: 0.5; stroke-dasharray: 4 4; fill: none; }
+    .boundary { fill: #888780; font-size: 12px; font-weight: 400; }
+
+    .gray-fill   { fill: #F1EFE8; stroke: #5F5E5A; }
+    .gray-t      { fill: #2C2C2A; } .gray-s { fill: #5F5E5A; }
+    .purple-fill { fill: #EEEDFE; stroke: #534AB7; }
+    .purple-t    { fill: #26215C; } .purple-s { fill: #534AB7; }
+    .blue-fill   { fill: #E6F1FB; stroke: #185FA5; }
+    .blue-t      { fill: #042C53; } .blue-s { fill: #185FA5; }
+    .teal-fill   { fill: #E1F5EE; stroke: #0F6E56; }
+    .teal-t      { fill: #04342C; } .teal-s { fill: #0F6E56; }
+    .red-fill    { fill: #FCEBEB; stroke: #A32D2D; }
+    .red-t       { fill: #501313; } .red-s { fill: #A32D2D; }
+
+    @media (prefers-color-scheme: dark) {
+      .t { fill: #E8E6DE; } .ts { fill: #B4B2A9; }
+      .lane-l { fill: #D3D1C7; } .lane-s { fill: #9c9a92; }
+      .lane { stroke: #444441; } .arr { stroke: #9c9a92; } .leader { stroke: #5F5E5A; }
+      .boundary { fill: #9c9a92; }
+      .gray-fill   { fill: #2C2C2A; stroke: #B4B2A9; } .gray-t { fill: #F1EFE8; } .gray-s { fill: #D3D1C7; }
+      .purple-fill { fill: #3C3489; stroke: #AFA9EC; } .purple-t { fill: #EEEDFE; } .purple-s { fill: #CECBF6; }
+      .blue-fill   { fill: #0C447C; stroke: #85B7EB; } .blue-t { fill: #E6F1FB; } .blue-s { fill: #B5D4F4; }
+      .teal-fill   { fill: #085041; stroke: #5DCAA5; } .teal-t { fill: #E1F5EE; } .teal-s { fill: #9FE1CB; }
+      .red-fill    { fill: #791F1F; stroke: #F09595; } .red-t { fill: #FCEBEB; } .red-s { fill: #F7C1C1; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <text class="lane-s" x="40" y="30">layer</text>
+  <rect class="lane" x="40" y="42" width="92" height="540" rx="8"/>
+
+  <text class="lane-l" x="86" y="74"  text-anchor="middle">agent/</text>
+  <text class="lane-s" x="86" y="94"  text-anchor="middle">proposes</text>
+  <text class="lane-s" x="86" y="110" text-anchor="middle">calls</text>
+
+  <text class="lane-l" x="86" y="238" text-anchor="middle">tools/</text>
+  <text class="lane-s" x="86" y="258" text-anchor="middle">validates</text>
+  <text class="lane-s" x="86" y="274" text-anchor="middle">+ resolves</text>
+
+  <text class="lane-l" x="86" y="410" text-anchor="middle">core/</text>
+  <text class="lane-s" x="86" y="430" text-anchor="middle">pure math</text>
+
+  <text class="lane-l" x="86" y="532" text-anchor="middle">db</text>
+  <text class="lane-s" x="86" y="552" text-anchor="middle">SQLite</text>
+
+  <g>
+    <rect class="gray-fill" x="162" y="48" width="470" height="52" rx="8" stroke-width="0.5"/>
+    <text class="gray-t t" x="182" y="72" dominant-baseline="central">"Ring up two Navy hoodies, size L"</text>
+    <text class="gray-s ts" x="182" y="90" dominant-baseline="central">user request — plain English</text>
+  </g>
+
+  <line x1="397" y1="100" x2="397" y2="124" class="arr" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect class="purple-fill" x="202" y="124" width="390" height="52" rx="8" stroke-width="0.5"/>
+    <text class="purple-t t" x="222" y="144" dominant-baseline="central">agent proposes create_sale(...)</text>
+    <text class="purple-s ts" x="222" y="162" dominant-baseline="central">picks tool + args — never computes money itself</text>
+  </g>
+
+  <line x1="397" y1="176" x2="397" y2="200" class="arr" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect class="blue-fill" x="202" y="200" width="390" height="66" rx="8" stroke-width="0.5"/>
+    <text class="blue-t t" x="222" y="222" dominant-baseline="central">resolve sku, check stock, resolve customer</text>
+    <text class="blue-s ts" x="222" y="244" dominant-baseline="central">the validation gate — every check runs before any write</text>
+  </g>
+
+  <text class="ts" x="237" y="288" dominant-baseline="central" text-anchor="middle">valid</text>
+  <line x1="302" y1="266" x2="302" y2="338" class="arr" marker-end="url(#arrow)"/>
+
+  <text class="ts" x="514" y="288" dominant-baseline="central" text-anchor="middle">ambiguous / oversell / over-return</text>
+  <path d="M482 266 L482 301 L562 301 L562 338" class="arr" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect class="teal-fill" x="182" y="338" width="240" height="66" rx="8" stroke-width="0.5"/>
+    <text class="teal-t t" x="302" y="360" dominant-baseline="central" text-anchor="middle">core computes price</text>
+    <text class="teal-s ts" x="302" y="382" dominant-baseline="central" text-anchor="middle">promo, proration, Decimal</text>
+  </g>
+
+  <g>
+    <rect class="red-fill" x="452" y="338" width="180" height="66" rx="8" stroke-width="0.5"/>
+    <text class="red-t t" x="542" y="360" dominant-baseline="central" text-anchor="middle">structured error</text>
+    <text class="red-s ts" x="542" y="382" dominant-baseline="central" text-anchor="middle">writes nothing — asks</text>
+  </g>
+
+  <line x1="302" y1="404" x2="302" y2="480" class="arr" marker-end="url(#arrow)"/>
+
+  <path d="M542 404 L542 438 L362 438" class="leader"/>
+  <text class="ts" x="472" y="454" dominant-baseline="central" text-anchor="middle">reply relayed back to user</text>
+
+  <g>
+    <rect class="teal-fill" x="182" y="480" width="240" height="66" rx="8" stroke-width="0.5"/>
+    <text class="teal-t t" x="302" y="502" dominant-baseline="central" text-anchor="middle">INSERT order + lines</text>
+    <text class="teal-s ts" x="302" y="524" dominant-baseline="central" text-anchor="middle">UPDATE inventory — one txn</text>
+  </g>
+
+  <line x1="147" y1="513" x2="178" y2="513" class="arr" marker-end="url(#arrow)"/>
+
+  <rect x="162" y="566" width="470" height="1" fill="#B4B2A9"/>
+  <text class="boundary" x="397" y="588" dominant-baseline="central" text-anchor="middle">mutation boundary — only tools/ crosses below this line into the db</text>
+</svg>
