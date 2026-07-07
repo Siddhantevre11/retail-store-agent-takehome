@@ -120,10 +120,55 @@ wrong thing" versus "correctly refused something it should have accepted" — is
 which test tool caught which bug; an assertion-based harness alone would never have surfaced
 the second class, since there was no pre-known expected value to assert.
 
+**A structural fix beats a behavioral instruction — measured, not claimed.** A follow-up smoke
+run surfaced three more issues: the model occasionally called `get_unit_price` with an invented
+placeholder sku before `find_sku` had resolved a real one; `get_margin_report` crashed with a
+raw `KeyError` on any period other than `"last_month"` (the schema's `enum` only ever allowed
+that one value, so a question about "this month" got silently answered with last month's
+numbers, rationalized in prose); and the color/size-folding fix above needed auditing against
+a nearby case (a garbage descriptor word, e.g. "Wool" passed as a color for socks). Two of
+these turned out to already be correctly handled at the tool layer on inspection — `create_sale`
+already resolved price internally without depending on any prior `get_unit_price` call, and the
+"jumper"-style synonym resolution was already an explicit, reviewed dict, not the model
+guessing — so those got audit-locking tests rather than code changes. The margin crash was a
+real bug, fixed by making `"this_month"` an explicit, non-crashing unsupported-period signal
+and widening the schema so the model could actually express the request instead of being
+structurally forced into the wrong one.
+
+The `get_unit_price` fix is the clearest evidence in the whole project that removing a failure
+mode structurally beats instructing the model not to trigger it: after tightening the tool's
+own description (not the system prompt) to state it's unnecessary before `create_sale`, a
+65-conversation/82-prompt live re-run showed `get_unit_price` calls drop from **29 to 3** —
+not just the 2 placeholder calls, but ~26 other speculative "preview the price" calls the model
+was making out of habit. The 3 remaining calls were exactly the 3 legitimate standalone
+price-lookup prompts. Confirmed stable, not a one-off: **0 placeholder/unknown-sku calls across
+3 independent full re-runs (195 prompts total)**, `get_unit_price` at exactly 3 calls in all
+three, and the `this_month` question correctly returning the `unsupported_period` signal in
+every run.
+
+**Known residual limitation, stated honestly rather than glossed over.** The "garbage
+descriptor" case (e.g., "Wool" passed as `color` for a colorless product) is provably safe by
+construction, not just lucky: `find_sku`'s color/size filters only ever *narrow* the
+name-matched candidate set by strict equality against real catalog values (see
+`test_find_sku_garbage_color_never_produces_a_wrong_confident_match`) — they can never
+introduce a match that wasn't already there, so an invalid descriptor word can only ever push
+the result toward zero candidates (a safe clarifying question), never toward a wrong single
+confident sku, even when the bare product name is itself ambiguous (verified against a 4-way
+ambiguous "Hoodie" and a 6-way ambiguous "Tee"). Across all 4 live runs of this exact scenario
+("...a pair of Wool Socks..."), it resolved correctly 3 times and asked once — never sold the
+wrong thing. What this fix *cannot* structurally prevent is the model confidently asserting a
+specific, real, valid color/size value that doesn't actually match what the customer said at
+all (pure hallucination, not mis-slotting) — no tool-layer validation can distinguish a
+correctly-perceived value from a confidently wrong one, since the tool only ever sees whatever
+argument the model decided to pass. That residual risk is a model-quality/prompting boundary,
+not a code defect, and the project's explicit "ask on ambiguity, act on clarity" design (rather
+than confirm-before-every-mutation) accepts it as out of scope.
+
 **Harness result:** 41 cases, 100% pass rate, run directly against the live OpenAI API
 (`python -m tests.harness`), stable across repeated reruns. 11 real silent-guess/crash bugs
-found and fixed this way, plus 1 robustness gap found via the manual smoke run, on top of 62
-passing unit tests for `core/`, `tools/`, `agent/session`, and the CSV loader.
+found and fixed via the harness, plus 2 further robustness/crash fixes (color/size-folding,
+margin period crash) found via the manual smoke run, on top of 69 passing unit tests for
+`core/`, `tools/`, `agent/session`, and the CSV loader.
 
 ## 4. What's next
 

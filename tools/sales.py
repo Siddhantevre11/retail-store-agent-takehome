@@ -38,6 +38,23 @@ def _known_descriptor_words(conn, column, synonyms):
     return values | set(synonyms.keys()) | {v.lower() for v in synonyms.values()}
 
 
+def _validate_domain_value(conn, column, synonyms, value):
+    """A color/size argument only carries filtering information if it's a
+    real catalog value or a recognized synonym. A mis-slotted word that
+    isn't ("socks" as a color, "XXL" as a size — anything the hidden
+    prompts throw, not just the specific words seen so far) is dropped
+    (treated as unspecified) rather than used to filter, so it can't
+    silently exclude the correct candidate. This is the complementary
+    direction to _extract_and_strip below: that recovers a real descriptor
+    word folded into the wrong slot (product_name); this rejects a fake one
+    that landed in the right-shaped slot.
+    """
+    if value is None:
+        return None
+    known = _known_descriptor_words(conn, column, synonyms)
+    return value if value.strip().lower() in known else None
+
+
 def _extract_and_strip(conn, column, synonyms, query_name, explicit_value):
     """If explicit_value is None, look for a known descriptor word (e.g. a
     color name) folded into query_name and recover it as the effective
@@ -63,6 +80,9 @@ def find_sku(conn, product_name, color=None, size=None):
     Returns the sku string on an unambiguous match, or a list of candidate
     rows (dicts) when more than one variant matches — never guesses.
     """
+    color = _validate_domain_value(conn, "color", _COLOR_SYNONYMS, color)
+    size = _validate_domain_value(conn, "size", _SIZE_SYNONYMS, size)
+
     query_name = product_name
     query_name, color = _extract_and_strip(conn, "color", _COLOR_SYNONYMS, query_name, color)
     query_name, size = _extract_and_strip(conn, "size", _SIZE_SYNONYMS, query_name, size)

@@ -95,6 +95,33 @@ def test_find_sku_matches_color_word_folded_into_name_even_without_a_separate_co
     assert sku == "TEE-BLK-M"
 
 
+def test_find_sku_ignores_an_invalid_color_and_resolves_by_name_alone(db_conn):
+    # Complementary direction to the folding fix: "socks" isn't a real
+    # catalog color, so it must be dropped rather than used as a filter —
+    # letting the otherwise-unambiguous product name resolve correctly,
+    # not falsely reporting no match.
+    sku = find_sku(db_conn, "Wool Socks", color="socks", size=None)
+
+    assert sku == "SOCK"
+
+
+def test_find_sku_ignores_invalid_color_and_size_and_surfaces_real_ambiguity(db_conn):
+    # Both slots are garbage ("banana" isn't a color, "XXL" isn't a size in
+    # this catalog) — both must be dropped, and the genuine ambiguity of
+    # "Tee" alone (6 variants) must surface as candidates, never a guess.
+    result = find_sku(db_conn, "Tee", color="banana", size="XXL")
+
+    assert isinstance(result, list)
+    assert len(result) == 6
+
+
+def test_find_sku_valid_color_and_size_are_unaffected_by_domain_validation(db_conn):
+    # Regression: real values must resolve exactly as before.
+    sku = find_sku(db_conn, "Tee", color="Blue", size="M")
+
+    assert sku == "TEE-BLU-M"
+
+
 def test_find_sku_returns_candidates_on_genuine_ambiguity(db_conn):
     result = find_sku(db_conn, "hoodie", size="Medium")
 
