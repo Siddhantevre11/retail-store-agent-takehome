@@ -146,29 +146,37 @@ price-lookup prompts. Confirmed stable, not a one-off: **0 placeholder/unknown-s
 three, and the `this_month` question correctly returning the `unsupported_period` signal in
 every run.
 
-**Known residual limitation, stated honestly rather than glossed over.** The "garbage
-descriptor" case (e.g., "Wool" passed as `color` for a colorless product) is provably safe by
-construction, not just lucky: `find_sku`'s color/size filters only ever *narrow* the
-name-matched candidate set by strict equality against real catalog values (see
-`test_find_sku_garbage_color_never_produces_a_wrong_confident_match`) — they can never
-introduce a match that wasn't already there, so an invalid descriptor word can only ever push
-the result toward zero candidates (a safe clarifying question), never toward a wrong single
-confident sku, even when the bare product name is itself ambiguous (verified against a 4-way
-ambiguous "Hoodie" and a 6-way ambiguous "Tee"). Across all 4 live runs of this exact scenario
-("...a pair of Wool Socks..."), it resolved correctly 3 times and asked once — never sold the
-wrong thing. What this fix *cannot* structurally prevent is the model confidently asserting a
+**The mis-slotting failure class, closed in both directions.** A descriptive word can land in
+the wrong place two ways: folded into `product_name` when it should have been its own argument
+("Black Tee"), or a non-color/non-size word landing in the `color`/`size` argument itself
+("socks" as a color, "XXL" as a size — the "Wool" case above). The first direction was fixed by
+recovering a real descriptor word folded into the name query; the second is closed by
+validating `color`/`size` against the catalog's actual domain (its real distinct values plus
+recognized synonyms) before ever using them to filter — an invalid value is dropped rather than
+filtered on, so `find_sku("Wool Socks", color="socks")` now correctly resolves to `SOCK` by name
+alone instead of falsely reporting no match, while `find_sku("Tee", color="banana",
+size="XXL")` still correctly surfaces all 6 candidates rather than guessing. Both directions
+generalize past the specific words observed — validation is domain membership, not a table of
+anticipated bad inputs — and genuine ambiguity (a bare "hoodie" or "tee" with nothing to
+disambiguate it) still correctly surfaces every real candidate, never picks one. Verified across
+5 total live runs of the "...a pair of Wool Socks..." scenario: resolved correctly 4 times,
+asked once (before the domain-validation fix) — never sold the wrong thing in any run.
+
+What remains structurally unfixable at the tool layer is the model confidently asserting a
 specific, real, valid color/size value that doesn't actually match what the customer said at
-all (pure hallucination, not mis-slotting) — no tool-layer validation can distinguish a
+all — pure hallucination, not mis-slotting. No amount of domain validation can distinguish a
 correctly-perceived value from a confidently wrong one, since the tool only ever sees whatever
-argument the model decided to pass. That residual risk is a model-quality/prompting boundary,
-not a code defect, and the project's explicit "ask on ambiguity, act on clarity" design (rather
-than confirm-before-every-mutation) accepts it as out of scope.
+argument the model decided to pass; it has no independent access to what the customer actually
+said. That's a genuine model-quality/prompting boundary, not a code defect, and the project's
+explicit "ask on ambiguity, act on clarity" design (rather than confirm-before-every-mutation)
+accepts it as out of scope.
 
 **Harness result:** 41 cases, 100% pass rate, run directly against the live OpenAI API
 (`python -m tests.harness`), stable across repeated reruns. 11 real silent-guess/crash bugs
-found and fixed via the harness, plus 2 further robustness/crash fixes (color/size-folding,
-margin period crash) found via the manual smoke run, on top of 69 passing unit tests for
-`core/`, `tools/`, `agent/session`, and the CSV loader.
+found and fixed via the harness, plus 3 further robustness/crash fixes (color/size-folding,
+the complementary domain-validation fix, and the margin period crash) found via the manual
+smoke run, on top of 71 passing unit tests for `core/`, `tools/`, `agent/session`, and the CSV
+loader.
 
 ## 4. What's next
 
