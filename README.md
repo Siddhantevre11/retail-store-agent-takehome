@@ -1,8 +1,8 @@
 # Retail Store Agent
 
 An interactive CLI agent for a small retail store, backed by a deterministic core, a
-validating tool layer, and an OpenAI tool-calling loop. See `PRD.md`, `CONTEXT.md`, and
-`docs/adr/` for the full design history.
+validating tool layer, and an OpenAI tool-calling loop. See `docs/PRD.md`, `docs/CONTEXT.md`,
+and `docs/adr/` for the full design history.
 
 ## Setup
 

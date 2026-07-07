@@ -310,7 +310,7 @@ def _(client):
     # (<=5), but the other 3 hoodie skus and the aggregate hoodie days-of-cover
     # stay healthy — only this one sku should get reordered, not the whole
     # hoodie product line. Real test of the sku-level PO granularity decision
-    # (CONTEXT.md), beyond the seed's TOTE-only case.
+    # (docs/CONTEXT.md), beyond the seed's TOTE-only case.
     conn, session, tool_log, replies = run_conversation(
         client,
         [

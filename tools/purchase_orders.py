@@ -46,7 +46,7 @@ def create_reorder_purchase_orders(conn, order_date):
     """Rule 4 + rule 7: for every flagged sku, open a PO line with the
     cheapest eligible supplier, sized to that sku's own reorder_qty. Every
     sku of a flagged product already appears in get_stockout_report (see
-    CONTEXT.md), so no separate "flagged only by velocity" branch is needed
+    docs/CONTEXT.md), so no separate "flagged only by velocity" branch is needed
     here — grouping by supplier and writing one PO per supplier is enough.
     """
     flagged = get_stockout_report(conn)
