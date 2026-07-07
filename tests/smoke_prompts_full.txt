@@ -1,0 +1,146 @@
+Ring up two Blue Classic Tees, size M, for a walk-in, card, dated today.
+
+Sell one Black Tee, size L, to Marcus Reed, cash, dated today.
+
+Ring up a Gray Hoodie, size M, for Priya Patel, card, dated today.
+
+Sell Tom Becker a Navy Hoodie, size L, and a pair of Wool Socks, cash, dated today.
+
+Ring up three jumpers, navy, size M, for a walk-in, cash, dated today.
+
+Sell one hoodie to Sarah Chen — she wants the grey one, size L, card, dated today.
+
+Ring up a Canvas Tote and a Ceramic Mug for a walk-in, cash, dated today.
+
+Sell two pairs of Wool Socks to Marcus Reed, card, dated today.
+
+Ring up five Black Tees, size S, for a walk-in with a 15% order discount, cash, dated today.
+
+Sell one Blue Tee, size M, to someone named Priya, cash, dated today.
+
+Ring up a hoodie for a walk-in, cash, dated today.
+
+Sell 100 Wool Socks to Tom Becker, cash, dated today.
+
+Ring up one Flying Carpet for a walk-in, cash, dated today.
+
+Sell a tee to Marcus, cash, dated today.
+
+Ring up two sweatshirts, gray, size M, for Sarah Chen, card, dated today.
+
+Sell one Blue Tee, size S, and one Black Tee, size S, to Priya Patel, cash, dated today.
+
+Ring up a pullover in navy, size M, for a walk-in, card, dated today.
+
+Sell one tote bag to Tom Becker, cash, dated today.
+
+Ring up four Ceramic Mugs for a walk-in, card, dated today.
+
+Sell one t-shirt, blue, large, to Marcus Reed, cash, dated today.
+
+Sarah Chen wants to return the Navy Large hoodie from order O-1006, good condition, one unit, dated today.
+
+Return the Ceramic Mug from order O-1002, damaged, one unit, dated today.
+
+Return two Black Tees, size L, from order O-1003, good condition, dated today.
+
+Return 10 Wool Socks from order O-1007, good condition, dated today.
+
+Return 11 Wool Socks from order O-1007, good condition, dated today.
+
+Return a hoodie from order O-1012, good condition, one unit, dated today.
+
+Return the Canvas Tote from order O-9999, good condition, dated today.
+
+Return a Ceramic Mug from order O-1001, good condition, dated today.
+
+Return one Blue Tee, size M, from order O-1008, damaged, dated today.
+
+Return three Blue Tees, size M, from order O-1001, good condition, dated today.
+
+Create a 15% off promotion on Wool Socks, from today through two weeks from today.
+
+Start a 25% off sale on the goods category, from today to the end of the month.
+
+Create a promotion — 10% off — starting today, ending in a week.
+
+Run a 30% off promotion on the apparel category, today through next Friday.
+
+Start a 50% off flash sale on hoodies, today through tomorrow.
+
+Create a 20% off promo on the "Goods" category, today through next week.
+
+Create a 10% off promotion on Ceramic Mugs and Canvas Totes, today through next week.
+
+What's about to stock out?
+
+Reorder anything that's below its reorder point, from the best supplier, dated today.
+
+Reorder everything that's low again, dated today.
+
+A PO for 50 Canvas Totes from Northwind is open, and 30 arrived today — receive them.
+
+Receive 20 Ceramic Mugs from Pioneer Goods, dated today.
+
+Receive stock from northwind for Wool Socks, 40 units, dated today.
+
+Receive 5 Flying Carpets from Northwind Supply, dated today.
+
+Receive 10 Navy Hoodies, size L, from Northwind Supply, dated today.
+
+What are my top 5 products by profit margin last month?
+
+Show me the top 2 products by margin last month.
+
+What's my margin report for last month, top 10?
+
+What's the current price of a Navy Hoodie, size L?
+
+What was the price of a Blue Classic Tee, size M, on May 3rd 2026?
+
+What was the price of a Blue Classic Tee, size M, on May 10th 2026?
+
+Ring up a Canvas Tote for John Smith, cash, dated today.
+
+Sell one Ceramic Mug to Sarah, cash, dated today.
+
+Ring up one Blue Tee, size M, for Priya Patel, card, dated today.
+Now sell her a Canvas Tote too, same terms.
+
+Ring up two Navy Hoodies, size L, for a walk-in, cash, dated today.
+Actually, make that three.
+
+Ring up one Navy Hoodie, size L, for Sarah Chen, card, dated today.
+Now refund that — it was in good condition.
+Actually never mind, sell her another one instead, same terms.
+
+Ring up a Ceramic Mug for a walk-in, cash, dated today.
+Make that two mugs instead.
+
+Reorder anything that's below its reorder point, from the best supplier, dated today.
+Do it again.
+
+Ring up one Canvas Tote for Marcus Reed, cash, dated today.
+Now return it, good condition, dated today.
+Sell him another tote, same terms.
+
+Ring up one Gray Hoodie, size L, for Tom Becker, card, dated today.
+What's the total on that order?
+
+Sell one Black Tee, size M, to Priya Patel, cash, dated today.
+Now return it, damaged, dated today.
+Does that affect this month's margin report?
+
+Ring up a Wool Socks pair for a walk-in, cash, dated today.
+Now sell them another pair too.
+And a Ceramic Mug on top of that.
+
+Create a 20% off promotion on Classic Tee, today through next week.
+Now ring up two Blue Tees, size M, for a walk-in, cash, dated today.
+
+Reorder anything below its reorder point, dated today.
+Now receive the Canvas Tote purchase order in full from Northwind, dated today.
+
+Sarah Chen returns one Navy Large hoodie from order O-1006, good condition, dated today.
+Priya Patel returns the Gray Large hoodie from order O-1010, good condition, dated today.
+What are my top 5 products by profit margin last month?
