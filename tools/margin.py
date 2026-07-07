@@ -30,12 +30,24 @@ def get_margin_report(conn, period="last_month", top_n=5):
     is still in progress, so its margin would be a moving, misleading
     number rather than the closed-period figure this report is for. Rejects
     explicitly rather than crashing or silently substituting last_month.
+
+    Safe independent of the schema: any period the tool itself doesn't
+    recognize — not just "this_month" — returns the same structured error
+    shape rather than a raw KeyError, so a narrow tool-schema enum is a
+    convenience for the model, not the only thing keeping this from
+    crashing.
     """
     if period == "this_month":
         return {
             "error": "unsupported_period",
             "period": "this_month",
             "reason": "the current month is still in progress; margin is only reported for complete months",
+        }
+    if period not in _PERIODS:
+        return {
+            "error": "unsupported_period",
+            "period": period,
+            "reason": "unrecognized period",
         }
     start, end = _PERIODS[period]
 

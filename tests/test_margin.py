@@ -66,6 +66,19 @@ def test_get_margin_report_rejects_this_month_as_incomplete(db_conn):
     }
 
 
+def test_get_margin_report_rejects_an_unrecognized_period_cleanly(db_conn):
+    # The tool must be safe independent of the schema's enum — a period
+    # string the tool itself has never heard of (not just "this_month")
+    # must return the same structured error shape, never a raw KeyError.
+    result = get_margin_report(db_conn, period="april")
+
+    assert result == {
+        "error": "unsupported_period",
+        "period": "april",
+        "reason": "unrecognized period",
+    }
+
+
 def test_get_margin_report_damaged_return_does_not_reduce_margin(db_conn):
     # Damaged return dated WITHIN May, isolating this from the
     # period-boundedness rule — margin must still be unaffected, since only
