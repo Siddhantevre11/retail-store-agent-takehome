@@ -41,7 +41,7 @@ scenarios first. Getting one of those wrong costs a design revision, not a wrong
 database. Matching the process to the risk mattered more than using one discipline for
 everything.
 
-## 3. The architecture this produced
+## 3. The architecture
 
 Since correctness had to hold up on prompts I'd never see, my goal wasn't "handle the 10
 samples." It was to make the LLM structurally incapable of writing a wrong number, no matter how
