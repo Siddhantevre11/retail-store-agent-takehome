@@ -198,38 +198,41 @@ def create_sale(
     customer_id = find_customer(conn, customer_name) if customer_name else None
     order_id = _next_order_id(conn)
 
-    conn.execute(
-        "INSERT INTO orders (order_id, order_date, customer_id, order_discount_pct, payment_method)"
-        " VALUES (?, ?, ?, ?, ?)",
-        (order_id, order_date.isoformat(), customer_id, str(order_discount_pct), payment_method),
-    )
-
     receipt_lines = []
     total = Decimal("0")
-    for line_no, rl in enumerate(resolved_lines, start=1):
+    # Atomic by transaction, not just by front-loaded validation: `with conn`
+    # commits on clean exit and rolls back the whole write phase (order +
+    # every line's order_lines/inventory write so far) on any exception.
+    with conn:
         conn.execute(
-            "INSERT INTO order_lines (order_id, line_no, sku, quantity, unit_price)"
+            "INSERT INTO orders (order_id, order_date, customer_id, order_discount_pct, payment_method)"
             " VALUES (?, ?, ?, ?, ?)",
-            (order_id, line_no, rl["sku"], rl["quantity"], str(rl["unit_price"])),
-        )
-        conn.execute(
-            "UPDATE inventory SET on_hand_qty = on_hand_qty - ? WHERE sku = ?",
-            (rl["quantity"], rl["sku"]),
+            (order_id, order_date.isoformat(), customer_id, str(order_discount_pct), payment_method),
         )
 
-        unit_price_paid = prorate_unit_price(rl["unit_price"], order_discount_pct)
-        line_total = unit_price_paid * rl["quantity"]
-        total += line_total
-        receipt_lines.append(
-            {
-                "sku": rl["sku"],
-                "quantity": rl["quantity"],
-                "unit_price_paid": unit_price_paid,
-                "line_total": line_total,
-            }
-        )
+        for line_no, rl in enumerate(resolved_lines, start=1):
+            conn.execute(
+                "INSERT INTO order_lines (order_id, line_no, sku, quantity, unit_price)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (order_id, line_no, rl["sku"], rl["quantity"], str(rl["unit_price"])),
+            )
+            conn.execute(
+                "UPDATE inventory SET on_hand_qty = on_hand_qty - ? WHERE sku = ?",
+                (rl["quantity"], rl["sku"]),
+            )
 
-    conn.commit()
+            unit_price_paid = prorate_unit_price(rl["unit_price"], order_discount_pct)
+            line_total = unit_price_paid * rl["quantity"]
+            total += line_total
+            receipt_lines.append(
+                {
+                    "sku": rl["sku"],
+                    "quantity": rl["quantity"],
+                    "unit_price_paid": unit_price_paid,
+                    "line_total": line_total,
+                }
+            )
+
     return {
         "order_id": order_id,
         "customer_id": customer_id,

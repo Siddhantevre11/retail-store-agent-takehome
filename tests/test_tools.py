@@ -1,6 +1,10 @@
+import sqlite3
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
+from tests.conftest import FlakyConnProxy
 from tools.sales import create_sale, find_customer, find_sku, get_unit_price
 
 
@@ -234,6 +238,42 @@ def test_create_sale_multi_line_walk_in_prompt_1(db_conn):
     ).fetchone()["on_hand_qty"]
     assert tee_on_hand == 20
     assert tote_on_hand == 3
+
+
+def test_create_sale_rolls_back_completely_on_a_mid_write_failure(db_conn):
+    # Atomicity is now structural (a transaction), not just incidental from
+    # front-loaded validation — fault-injected at the DB boundary to
+    # simulate a real mid-transaction crash after line 1's write has
+    # already happened but before line 2's: the whole write phase must roll
+    # back, not leave a dangling order/order_lines row or a
+    # partially-decremented inventory.
+    flaky_conn = FlakyConnProxy(db_conn, fail_sql_prefix="UPDATE inventory", fail_on_nth=2)
+
+    with pytest.raises(sqlite3.OperationalError):
+        create_sale(
+            flaky_conn,
+            lines=[
+                {"product_name": "Canvas Tote", "color": None, "size": None, "quantity": 1},
+                {"product_name": "Ceramic Mug", "color": None, "size": None, "quantity": 1},
+            ],
+            payment_method="cash",
+            order_discount_pct=Decimal("0"),
+            order_date=date(2026, 6, 19),
+        )
+
+    order_count = db_conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    order_line_count = db_conn.execute("SELECT COUNT(*) AS n FROM order_lines").fetchone()["n"]
+    tote_on_hand = db_conn.execute(
+        "SELECT on_hand_qty FROM inventory WHERE sku = 'TOTE'"
+    ).fetchone()["on_hand_qty"]
+    mug_on_hand = db_conn.execute(
+        "SELECT on_hand_qty FROM inventory WHERE sku = 'MUG'"
+    ).fetchone()["on_hand_qty"]
+
+    assert order_count == 15  # seed count, no dangling order row
+    assert order_line_count == 22  # seed count, no dangling order_lines rows
+    assert tote_on_hand == 4  # seed value, line 1's decrement rolled back too
+    assert mug_on_hand == 30  # seed value, never reached
 
 
 def test_create_sale_rejects_line_exceeding_on_hand_qty(db_conn):

@@ -51,18 +51,21 @@ def process_return(
     refund_amount = unit_price_paid * quantity
 
     return_id = _next_return_id(conn)
-    conn.execute(
-        "INSERT INTO returns (return_id, return_date, order_id, sku, quantity, condition, refund_amount)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (return_id, return_date.isoformat(), order_id, sku, quantity, condition, str(refund_amount)),
-    )
-
-    if condition == "good":
+    # Atomic by transaction: `with conn` rolls back both the return INSERT
+    # and the inventory UPDATE together on any exception, rather than
+    # risking a refund recorded with stock never actually restocked.
+    with conn:
         conn.execute(
-            "UPDATE inventory SET on_hand_qty = on_hand_qty + ? WHERE sku = ?", (quantity, sku)
+            "INSERT INTO returns (return_id, return_date, order_id, sku, quantity, condition, refund_amount)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (return_id, return_date.isoformat(), order_id, sku, quantity, condition, str(refund_amount)),
         )
 
-    conn.commit()
+        if condition == "good":
+            conn.execute(
+                "UPDATE inventory SET on_hand_qty = on_hand_qty + ? WHERE sku = ?", (quantity, sku)
+            )
+
     return {
         "return_id": return_id,
         "sku": sku,
