@@ -68,7 +68,7 @@ each of which validates and resolves references before touching the database. Fu
 python -m pytest
 ```
 
-62 unit tests covering `core/`, `tools/`, `agent/session`, and the loader.
+76 unit tests covering `core/`, `tools/`, `agent/session`, and the loader.
 
 An adversarial harness drives the agent through real prompts against the live OpenAI API and
 asserts on captured tool calls / DB state (never on prose replies):
