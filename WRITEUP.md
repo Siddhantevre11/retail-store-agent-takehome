@@ -69,7 +69,7 @@ question. It can never write a wrong number. That's also why `tools/`, not `agen
 "ask instead of guess" decision. The agent can be wrong in prose for free. The tool layer can't be
 wrong in a row.
 
-## 4. How I verified it generalizes
+## 4. How I checked it held up
 
 An assertion harness only tells you something if it's asserting on the right thing. Mine checks
 tool-call sequences and the resulting database state. It never looks at the model's prose reply.
