@@ -49,6 +49,23 @@ def test_get_margin_report_is_unaffected_by_a_later_period_return(db_conn):
     assert hood["margin"] == Decimal("282.00")  # unchanged
 
 
+def test_get_margin_report_rejects_this_month_as_incomplete(db_conn):
+    # Root cause of the "does that affect this month's margin" mismatch: the
+    # tool previously had no way to represent "this month" at all (the schema
+    # enum only allowed "last_month"), forcing the model to silently send
+    # last_month regardless of what was actually asked and rationalize the
+    # substitution in prose. The current month is still in progress and its
+    # margin figure would be misleading, so this must reject cleanly rather
+    # than crash or silently substitute a different period.
+    result = get_margin_report(db_conn, period="this_month")
+
+    assert result == {
+        "error": "unsupported_period",
+        "period": "this_month",
+        "reason": "the current month is still in progress; margin is only reported for complete months",
+    }
+
+
 def test_get_margin_report_damaged_return_does_not_reduce_margin(db_conn):
     # Damaged return dated WITHIN May, isolating this from the
     # period-boundedness rule — margin must still be unaffected, since only

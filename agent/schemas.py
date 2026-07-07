@@ -55,7 +55,13 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_unit_price",
-            "description": "Get the promo-adjusted unit price for a sku as of a given date (YYYY-MM-DD).",
+            "description": (
+                "Get the promo-adjusted unit price for a sku as of a given date "
+                "(YYYY-MM-DD), for a standalone price lookup (e.g. 'what does this cost'). "
+                "The sku must be one already returned by find_sku — never an invented or "
+                "placeholder value. Not needed before create_sale: create_sale resolves "
+                "each line's price internally from its own resolved sku."
+            ),
             "strict": True,
             "parameters": {
                 "type": "object",
@@ -273,13 +279,16 @@ TOOL_SCHEMAS = [
                 "Top products by profit margin for a period. Period-bounded: a "
                 "return only affects the margin of the period its own return date "
                 "falls in. Only good/restocked returns reduce margin; damaged "
-                "returns don't."
+                "returns don't. 'this_month' is a recognized but unsupported period — "
+                "the current month is still in progress, so pass it through as-is and "
+                "surface the resulting unsupported_period error rather than "
+                "substituting last_month."
             ),
             "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "period": {"type": "string", "enum": ["last_month"]},
+                    "period": {"type": "string", "enum": ["last_month", "this_month"]},
                     "top_n": {"type": "integer"},
                 },
                 "required": ["period", "top_n"],

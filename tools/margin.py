@@ -25,7 +25,18 @@ def get_margin_report(conn, period="last_month", top_n=5):
     falls in — see _good_returned_qty_in_period's date filter. Only good
     (restocked) returns are excluded; damaged returns leave both revenue
     and cost counted (net_quantity is untouched by them).
+
+    "this_month" is a recognized but unsupported period: the current month
+    is still in progress, so its margin would be a moving, misleading
+    number rather than the closed-period figure this report is for. Rejects
+    explicitly rather than crashing or silently substituting last_month.
     """
+    if period == "this_month":
+        return {
+            "error": "unsupported_period",
+            "period": "this_month",
+            "reason": "the current month is still in progress; margin is only reported for complete months",
+        }
     start, end = _PERIODS[period]
 
     rows = conn.execute(

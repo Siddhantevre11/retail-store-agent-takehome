@@ -30,6 +30,35 @@ def test_find_sku_matches_grey_british_spelling_for_gray(db_conn):
     assert sku == "HOOD-GRY-M"
 
 
+def test_find_sku_matches_every_reviewed_hoodie_synonym(db_conn):
+    # Audit lock for issue: confirms _SYNONYMS in tools/text.py is the
+    # actual resolution mechanism (a small controlled dict), not the model
+    # guessing ad hoc — every reviewed synonym must resolve deterministically.
+    for synonym in ["sweater", "sweatshirt", "pullover"]:
+        sku = find_sku(db_conn, synonym, color="Gray", size="Medium")
+        assert sku == "HOOD-GRY-M", synonym
+
+
+def test_find_sku_matches_every_reviewed_tee_synonym(db_conn):
+    for synonym in ["t-shirt", "tshirt", "shirt"]:
+        sku = find_sku(db_conn, synonym, color="Blue", size="Medium")
+        assert sku == "TEE-BLU-M", synonym
+
+
+def test_find_sku_matches_bag_synonym_for_tote(db_conn):
+    sku = find_sku(db_conn, "bag")
+
+    assert sku == "TOTE"
+
+
+def test_find_sku_does_not_confidently_resolve_an_unknown_clothing_term(db_conn):
+    # "cardigan" is neither a substring of any catalog product_name nor a
+    # reviewed synonym — must fall through to no-match, never a guess.
+    result = find_sku(db_conn, "cardigan")
+
+    assert result == []
+
+
 def test_find_sku_matches_when_color_word_is_folded_into_the_name(db_conn):
     # "Black Tee" isn't a substring of "Classic Tee" (or vice versa) even
     # though color="Black" is passed separately — found via the smoke
@@ -112,6 +141,28 @@ def test_get_unit_price_returns_structured_error_for_unknown_sku(db_conn):
     result = get_unit_price(db_conn, "__resolve_after_sku__", date(2026, 6, 19))
 
     assert result == {"error": "unknown_sku", "sku": "__resolve_after_sku__"}
+
+
+def test_create_sale_is_unaffected_by_a_prior_placeholder_get_unit_price_call(db_conn):
+    # Root-cause lock for the placeholder-sku pattern observed via the smoke
+    # harness: create_sale resolves price internally from its own
+    # already-resolved line skus (tools/sales.py create_sale -> get_unit_price
+    # using the real sku) and never depends on any externally-supplied price
+    # or on get_unit_price having been called first. A speculative/garbage
+    # standalone call is a dead end, not a dependency, for the sale itself.
+    placeholder_result = get_unit_price(db_conn, "__placeholder__", date(2026, 6, 19))
+    assert placeholder_result == {"error": "unknown_sku", "sku": "__placeholder__"}
+
+    result = create_sale(
+        db_conn,
+        lines=[{"product_name": "Canvas Tote", "color": None, "size": None, "quantity": 1}],
+        payment_method="cash",
+        order_discount_pct=Decimal("0"),
+        order_date=date(2026, 6, 19),
+    )
+
+    assert result["total"] == Decimal("18.00")
+    assert result["lines"][0]["unit_price_paid"] == Decimal("18.00")
 
 
 def test_create_sale_single_line_walk_in_happy_path(db_conn):
